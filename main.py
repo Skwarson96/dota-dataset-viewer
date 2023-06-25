@@ -1,10 +1,34 @@
 import argparse
 import sys
 import cv2
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QSlider, QFrame, QGroupBox, QGridLayout, QGraphicsView
-from PyQt5.QtGui import QPixmap, QWheelEvent
+from PIL import Image
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QSlider, QFrame, QGroupBox, QGridLayout, QGraphicsView, QScrollArea
+from PyQt5.QtGui import QPixmap, QWheelEvent, QImage
 from PyQt5.QtCore import Qt
 
+
+class ImageProcessor:
+    def __init__(self, image_path):
+        self.image_path = image_path
+        self.image = None
+
+        self.read_image(image_path)
+
+    def read_image(self, image_path):
+        image = cv2.imread(image_path)
+        self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    def draw_annotation(self, points, color):
+        pass
+
+    def save_image(self, output_path):
+        self.image.save(output_path)
+
+    def convert_to_qpixmap(self):
+        height, width, channels = self.image.shape
+        qimage = QImage(self.image.data, width, height, channels * width, QImage.Format_RGB888)
+
+        return qimage
 
 
 class ImageViewer(QMainWindow):
@@ -38,11 +62,14 @@ class ImageViewer(QMainWindow):
 
         self.image_label.setAlignment(Qt.AlignCenter)
 
-        self.pixmap = QPixmap(self.images_path)
+        image = ImageProcessor(self.images_path)
+
+
+        self.pixmap = QPixmap(image.convert_to_qpixmap())
         pixmap_width = self.pixmap.width()
         pixmap_height = self.pixmap.height()
 
-        if window_width>pixmap_width or window_height>pixmap_height:
+        if window_width > pixmap_width or window_height > pixmap_height:
             scaled_pixmap = self.pixmap.scaled(pixmap_width, pixmap_height, Qt.KeepAspectRatio)
         else:
             scaled_pixmap = self.pixmap.scaled(window_width, window_height, Qt.KeepAspectRatio)
