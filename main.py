@@ -1,6 +1,7 @@
 import argparse
 import sys
 import cv2
+import os
 from PIL import Image
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QSlider, QFrame, QGroupBox, QGridLayout, QGraphicsView, QScrollArea
 from PyQt5.QtGui import QPixmap, QWheelEvent, QImage
@@ -8,21 +9,37 @@ from PyQt5.QtCore import Qt
 
 
 class ImageProcessor:
-    def __init__(self, image_path):
-        self.image_path = image_path
+    def __init__(self):
+        # self.image_path = image_path
         self.image = None
 
-        self.read_image(image_path)
+        # self.read_images_names(image_path)
+
+    def read_images_names(self, image_path):
+        image_names = []
+        for file_name in os.listdir(image_path):
+            if file_name.endswith('.jpg') or file_name.endswith('.png'):
+                image_names.append(file_name)
+        return image_names
 
     def read_image(self, image_path):
         image = cv2.imread(image_path)
         self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+
+    # def read_annotation_files(self, annotations_path):
+    #     annotations_files = []
+    #     for file_name in os.listdir(annotations_path):
+    #         if file_name.endswith('.jpg') or file_name.endswith('.png'):
+    #             annotations_files.append(file_name)
+
 
     def draw_annotation(self, points, color):
         pass
 
     def save_image(self, output_path):
         self.image.save(output_path)
+
 
     def convert_to_qpixmap(self):
         height, width, channels = self.image.shape
@@ -37,21 +54,25 @@ class ImageViewer(QMainWindow):
         self.images_path = images_path
         self.setWindowTitle("Test window")
 
-        window_width = 800
-        window_height = 800
-        self.setGeometry(100, 100, window_width, window_height)
+        self.current_img_index = 0
+        self.image_processor = ImageProcessor()
+
+        self.window_width = 800
+        self.window_height = 800
+        self.setGeometry(100, 100, self.window_width, self.window_height)
 
         image_widget = QWidget()
         self.setCentralWidget(image_widget)
 
         self.create_top_buttons_group()
-        self.create_image_label(window_width, window_height)
+        self.create_image_label(self.window_width, self.window_height)
 
 
         main_layout = QGridLayout()
         main_layout.addWidget(self.top_buttons_group)
         main_layout.addWidget(self.image_label)
         image_widget.setLayout(main_layout)
+        self.show_image()
 
 
     def wheelEvent(self, event: QWheelEvent):
@@ -59,37 +80,59 @@ class ImageViewer(QMainWindow):
 
     def create_image_label(self, window_width, window_height):
         self.image_label = QLabel()
-
         self.image_label.setAlignment(Qt.AlignCenter)
 
-        image = ImageProcessor(self.images_path)
+    def show_image(self):
+        self.images_names = self.image_processor.read_images_names(self.images_path)
 
+        self.image_processor.read_image(self.images_path + '/' + self.images_names[self.current_img_index])
 
-        self.pixmap = QPixmap(image.convert_to_qpixmap())
+        self.pixmap = QPixmap(self.image_processor.convert_to_qpixmap())
         pixmap_width = self.pixmap.width()
         pixmap_height = self.pixmap.height()
 
-        if window_width > pixmap_width or window_height > pixmap_height:
+        if self.window_width > pixmap_width or self.window_height > pixmap_height:
             scaled_pixmap = self.pixmap.scaled(pixmap_width, pixmap_height, Qt.KeepAspectRatio)
         else:
-            scaled_pixmap = self.pixmap.scaled(window_width, window_height, Qt.KeepAspectRatio)
+            scaled_pixmap = self.pixmap.scaled(self.window_width, self.window_height, Qt.KeepAspectRatio)
 
         self.image_label.setPixmap(scaled_pixmap)
+
 
     def create_top_buttons_group(self):
 
         self.top_buttons_group = QGroupBox()
 
-        button1 = QPushButton("Button 1")
-        button2 = QPushButton("Button 2")
+        prev_img_button = QPushButton("Prev image")
+        next_img_button = QPushButton("Next image")
         button3 = QPushButton("Button 3")
 
+        prev_img_button.clicked.connect(self.prev_img_button_clicked)
+        next_img_button.clicked.connect(self.next_img_button_clicked)
+
         layout = QHBoxLayout()
-        layout.addWidget(button1)
-        layout.addWidget(button2)
+        layout.addWidget(prev_img_button)
+        layout.addWidget(next_img_button)
         layout.addWidget(button3)
 
         self.top_buttons_group.setLayout(layout)
+
+    def prev_img_button_clicked(self):
+        if abs(self.current_img_index - 1) == len(self.images_names):
+            self.current_img_index = 0
+        else:
+            self.current_img_index = self.current_img_index - 1
+
+        self.show_image()
+
+    def next_img_button_clicked(self):
+        if self.current_img_index + 1 == len(self.images_names):
+            self.current_img_index = 0
+        else:
+            self.current_img_index = self.current_img_index + 1
+
+        self.show_image()
+
 
 def main(images_path, annotations_path):
     app = QApplication(sys.argv)
