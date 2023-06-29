@@ -4,9 +4,9 @@ import cv2
 import os
 import numpy as np
 from PIL import Image
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QSlider, QFrame, QGroupBox, QGridLayout, QGraphicsView, QScrollArea
-from PyQt5.QtGui import QPixmap, QWheelEvent, QImage
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QSlider, QFrame, QGroupBox, QGridLayout, QGraphicsView, QScrollArea, QGraphicsScene
+from PyQt5.QtGui import QPixmap, QWheelEvent, QImage, QTransform
+from PyQt5.QtCore import Qt, QRectF
 
 
 class ImageProcessor:
@@ -62,12 +62,13 @@ class ImageProcessor:
         return qimage
 
 
-class ImageViewer(QMainWindow):
-    def __init__(self, images_path, annotations_path):
+class ImageViewer(QWidget):
+    def __init__(self, image_path, annotations_path):
         super().__init__()
-        self.images_path = images_path
+
+        self.images_path = image_path
         self.annotations_path = annotations_path
-        self.setWindowTitle("Test window")
+        self.setWindowTitle("DOTA dataset viewer")
 
         self.current_img_index = 0
         self.image_processor = ImageProcessor()
@@ -75,52 +76,58 @@ class ImageViewer(QMainWindow):
         self.images_names = self.image_processor.read_images_names(self.images_path)
         self.annotations_files_names = self.image_processor.read_annotation_files(self.annotations_path)
 
+        self.view = QGraphicsView()
+        self.scene = QGraphicsScene()
+
         if len(self.images_names) != len(self.annotations_files_names):
             print('Different length of lists with filenames, check the number of files in the given folders')
             exit()
 
-        self.window_width = 800
-        self.window_height = 800
-        self.setGeometry(100, 100, self.window_width, self.window_height)
 
-        image_widget = QWidget()
-        self.setCentralWidget(image_widget)
+        self.show_image()
+        self.scale_factor = 1
+
+        self.view.setScene(self.scene)
 
         self.create_top_buttons_group()
-        self.create_image_label(self.window_width, self.window_height)
 
-
-        main_layout = QGridLayout()
+        main_layout = QVBoxLayout()
         main_layout.addWidget(self.top_buttons_group)
-        main_layout.addWidget(self.image_label)
-        image_widget.setLayout(main_layout)
-        self.show_image()
+        main_layout.addWidget(self.view)
 
+        self.setLayout(main_layout)
 
-    def wheelEvent(self, event: QWheelEvent):
-        print('wheelEvent')
+    def button_clicked(self, button_name):
+        print(button_name)
 
-    def create_image_label(self, window_width, window_height):
-        self.image_label = QLabel()
-        self.image_label.setAlignment(Qt.AlignCenter)
 
     def show_image(self):
-
         self.image_processor.read_image(self.images_path + '/' + self.images_names[self.current_img_index])
 
         annotation_file_name = self.images_names[self.current_img_index].rsplit(".", 1)[0] + '.txt'
         self.image_processor.read_and_draw_annotations(self.annotations_path + '/' + annotation_file_name)
 
         self.pixmap = QPixmap(self.image_processor.convert_to_qpixmap())
-        pixmap_width = self.pixmap.width()
-        pixmap_height = self.pixmap.height()
+        self.scene.addPixmap(self.pixmap)
 
-        if self.window_width > pixmap_width or self.window_height > pixmap_height:
-            scaled_pixmap = self.pixmap.scaled(pixmap_width, pixmap_height, Qt.KeepAspectRatio)
+
+    def wheelEvent(self, event: QWheelEvent):
+        self.current_scale = 1
+        if event.modifiers() & Qt.ControlModifier:
+            angle = event.angleDelta().y()
+
+            self.scale_factor = self.scale_factor + (angle / 120) * 0.1
+
+            if self.scale_factor > 5:
+                self.scale_factor = 5
+            if self.scale_factor < 0.5:
+                self.scale_factor = 0.5
+
+            if self.scale_factor < 5 and self.scale_factor > 0.5:
+                self.current_scale *= self.scale_factor
+                self.view.setTransform(QTransform().scale(self.current_scale, self.current_scale))
         else:
-            scaled_pixmap = self.pixmap.scaled(self.window_width, self.window_height, Qt.KeepAspectRatio)
-
-        self.image_label.setPixmap(scaled_pixmap)
+            event.ignore()
 
 
     def create_top_buttons_group(self):
