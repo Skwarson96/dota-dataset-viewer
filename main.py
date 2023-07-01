@@ -151,15 +151,18 @@ class WindowInterface(QWidget):
         prev_img_button = QPushButton("Prev image")
         next_img_button = QPushButton("Next image")
         save_img_button = QPushButton("Save image")
+        save_mask_button = QPushButton("Save mask")
 
         prev_img_button.clicked.connect(self.prev_img_button_clicked)
         next_img_button.clicked.connect(self.next_img_button_clicked)
         save_img_button.clicked.connect(self.save_img_button_clicked)
+        save_mask_button.clicked.connect(self.save_mask_button_clicked)
 
         layout = QHBoxLayout()
         layout.addWidget(prev_img_button)
         layout.addWidget(next_img_button)
         layout.addWidget(save_img_button)
+        layout.addWidget(save_mask_button)
 
         self.top_buttons_group.setLayout(layout)
 
@@ -185,6 +188,9 @@ class WindowInterface(QWidget):
     def save_img_button_clicked(self):
         self.image_processor.save_image(self.images_path, self.save_images_path, self.images_names[self.current_img_index])
 
+
+    def save_mask_button_clicked(self):
+        print('save_mask_button_clicked')
 
 def main(images_path, annotations_path, save_images_path):
     app = QApplication(sys.argv)
