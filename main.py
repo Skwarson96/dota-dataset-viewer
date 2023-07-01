@@ -12,6 +12,7 @@ from PyQt5.QtCore import Qt, QRectF, QEvent
 class ImageProcessor:
     def __init__(self):
         self.image = None
+        self.mask = None
 
     def read_images_names(self, image_path):
         image_names = []
@@ -23,6 +24,10 @@ class ImageProcessor:
     def read_image(self, image_path):
         image = cv2.imread(image_path)
         self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # create mask
+        height, width, _ = self.image.shape
+        self.mask = np.zeros((height, width), dtype=np.uint8)
 
 
     def read_annotation_files(self, annotations_path):
@@ -50,6 +55,8 @@ class ImageProcessor:
                     points = np.array(points, dtype=np.int32)
 
                     cv2.polylines(self.image, [points], isClosed=True, color=(0, 255, 0), thickness=2)
+                    cv2.fillPoly(self.mask, pts=[points], color=255)
+
 
     def save_image(self, image_folder_path, output_folder_path, image_name):
         if output_folder_path == '':
@@ -60,6 +67,17 @@ class ImageProcessor:
 
         cv2.imwrite(output_folder_path+'/'+image_name, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
         print(f'Image {image_name} saved!')
+
+
+    def save_mask(self, image_folder_path, output_folder_path, image_name):
+        if output_folder_path == '':
+            output_folder_path = image_folder_path+'../saved_masks'
+
+        if not os.path.exists(output_folder_path):
+            os.makedirs(output_folder_path)
+
+        cv2.imwrite(output_folder_path+'/mask_'+image_name, self.mask)
+        print(f'Mask from {image_name} saved!')
 
     def convert_to_qpixmap(self):
         height, width, channels = self.image.shape
@@ -93,12 +111,13 @@ class ImageViewer(QGraphicsView):
 
 
 class WindowInterface(QWidget):
-    def __init__(self, image_path, annotations_path, save_images_path):
+    def __init__(self, image_path, annotations_path, save_images_path, save_masks_path):
         super().__init__()
 
         self.images_path = image_path
         self.annotations_path = annotations_path
         self.save_images_path = save_images_path
+        self.save_masks_path = save_masks_path
 
         self.setWindowTitle("DOTA dataset viewer")
 
@@ -190,11 +209,11 @@ class WindowInterface(QWidget):
 
 
     def save_mask_button_clicked(self):
-        print('save_mask_button_clicked')
+        self.image_processor.save_mask(self.images_path, self.save_masks_path, self.images_names[self.current_img_index])
 
-def main(images_path, annotations_path, save_images_path):
+def main(images_path, annotations_path, save_images_path, save_masks_path):
     app = QApplication(sys.argv)
-    viewer = WindowInterface(images_path, annotations_path, save_images_path)
+    viewer = WindowInterface(images_path, annotations_path, save_images_path, save_masks_path)
     viewer.show()
     sys.exit(app.exec_())
 
@@ -204,6 +223,7 @@ if __name__ == '__main__':
     parser.add_argument("--images-path", default="", type=str, metavar="PATH", help="Path to images folder")
     parser.add_argument("--annotations-path", default="", type=str, metavar="PATH", help="Path to annotations json file")
     parser.add_argument("--save-images-path", default="", type=str, metavar="PATH", help="Path to the folder for saving photos with annotations")
+    parser.add_argument("--save-masks-path", default="", type=str, metavar="PATH", help="Path to the folder for saving binary masks")
     args = parser.parse_args()
 
-    main(args.images_path, args.annotations_path, args.save_images_path)
+    main(args.images_path, args.annotations_path, args.save_images_path, args.save_masks_path)
