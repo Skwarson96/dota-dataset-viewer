@@ -5,8 +5,8 @@ import os
 import numpy as np
 from PIL import Image
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QSlider, QFrame, QGroupBox, QGridLayout, QGraphicsView, QScrollArea, QGraphicsScene
-from PyQt5.QtGui import QPixmap, QWheelEvent, QImage, QTransform
-from PyQt5.QtCore import Qt, QRectF
+from PyQt5.QtGui import QPixmap, QWheelEvent, QImage, QTransform, QCursor, QPainter
+from PyQt5.QtCore import Qt, QRectF, QEvent
 
 
 class ImageProcessor:
@@ -62,7 +62,31 @@ class ImageProcessor:
         return qimage
 
 
-class ImageViewer(QWidget):
+class ImageViewer(QGraphicsView):
+    def __init__(self):
+        super().__init__()
+
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
+        self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
+        self.setInteractive(True)
+
+    def wheelEvent(self, event: QWheelEvent):
+        modifiers = QApplication.keyboardModifiers()
+        if modifiers == Qt.ControlModifier:
+            zoom_in = event.angleDelta().y() > 0
+            if zoom_in:
+                self.scale(1.1, 1.1)
+            else:
+                self.scale(0.9, 0.9)
+        else:
+            super().wheelEvent(event)
+
+
+
+class WindowInterface(QWidget):
     def __init__(self, image_path, annotations_path):
         super().__init__()
 
@@ -76,7 +100,7 @@ class ImageViewer(QWidget):
         self.images_names = self.image_processor.read_images_names(self.images_path)
         self.annotations_files_names = self.image_processor.read_annotation_files(self.annotations_path)
 
-        self.view = QGraphicsView()
+        self.view = ImageViewer()
         self.scene = QGraphicsScene()
 
         if len(self.images_names) != len(self.annotations_files_names):
@@ -97,10 +121,6 @@ class ImageViewer(QWidget):
 
         self.setLayout(main_layout)
 
-    def button_clicked(self, button_name):
-        print(button_name)
-
-
     def show_image(self):
         self.image_processor.read_image(self.images_path + '/' + self.images_names[self.current_img_index])
 
@@ -108,26 +128,12 @@ class ImageViewer(QWidget):
         self.image_processor.read_and_draw_annotations(self.annotations_path + '/' + annotation_file_name)
 
         self.pixmap = QPixmap(self.image_processor.convert_to_qpixmap())
+
+        self.scene.clear()
+
         self.scene.addPixmap(self.pixmap)
-
-
-    def wheelEvent(self, event: QWheelEvent):
-        self.current_scale = 1
-        if event.modifiers() & Qt.ControlModifier:
-            angle = event.angleDelta().y()
-
-            self.scale_factor = self.scale_factor + (angle / 120) * 0.1
-
-            if self.scale_factor > 5:
-                self.scale_factor = 5
-            if self.scale_factor < 0.5:
-                self.scale_factor = 0.5
-
-            if self.scale_factor < 5 and self.scale_factor > 0.5:
-                self.current_scale *= self.scale_factor
-                self.view.setTransform(QTransform().scale(self.current_scale, self.current_scale))
-        else:
-            event.ignore()
+        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.view.show()
 
 
     def create_top_buttons_group(self):
@@ -148,6 +154,7 @@ class ImageViewer(QWidget):
 
         self.top_buttons_group.setLayout(layout)
 
+
     def prev_img_button_clicked(self):
         if abs(self.current_img_index - 1) == len(self.images_names):
             self.current_img_index = 0
@@ -155,6 +162,7 @@ class ImageViewer(QWidget):
             self.current_img_index = self.current_img_index - 1
 
         self.show_image()
+
 
     def next_img_button_clicked(self):
         if self.current_img_index + 1 == len(self.images_names):
@@ -167,7 +175,7 @@ class ImageViewer(QWidget):
 
 def main(images_path, annotations_path):
     app = QApplication(sys.argv)
-    viewer = ImageViewer(images_path, annotations_path)
+    viewer = WindowInterface(images_path, annotations_path)
     viewer.show()
     sys.exit(app.exec_())
 
