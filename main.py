@@ -51,9 +51,15 @@ class ImageProcessor:
 
                     cv2.polylines(self.image, [points], isClosed=True, color=(0, 255, 0), thickness=2)
 
-    def save_image(self, output_path):
-        self.image.save(output_path)
+    def save_image(self, image_folder_path, output_folder_path, image_name):
+        if output_folder_path == '':
+            output_folder_path = image_folder_path+'../saved_images'
 
+        if not os.path.exists(output_folder_path):
+            os.makedirs(output_folder_path)
+
+        cv2.imwrite(output_folder_path+'/'+image_name, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
+        print(f'Image {image_name} saved!')
 
     def convert_to_qpixmap(self):
         height, width, channels = self.image.shape
@@ -87,11 +93,13 @@ class ImageViewer(QGraphicsView):
 
 
 class WindowInterface(QWidget):
-    def __init__(self, image_path, annotations_path):
+    def __init__(self, image_path, annotations_path, save_images_path):
         super().__init__()
 
         self.images_path = image_path
         self.annotations_path = annotations_path
+        self.save_images_path = save_images_path
+
         self.setWindowTitle("DOTA dataset viewer")
 
         self.current_img_index = 0
@@ -142,15 +150,16 @@ class WindowInterface(QWidget):
 
         prev_img_button = QPushButton("Prev image")
         next_img_button = QPushButton("Next image")
-        button3 = QPushButton("Button 3")
+        save_img_button = QPushButton("Save image")
 
         prev_img_button.clicked.connect(self.prev_img_button_clicked)
         next_img_button.clicked.connect(self.next_img_button_clicked)
+        save_img_button.clicked.connect(self.save_img_button_clicked)
 
         layout = QHBoxLayout()
         layout.addWidget(prev_img_button)
         layout.addWidget(next_img_button)
-        layout.addWidget(button3)
+        layout.addWidget(save_img_button)
 
         self.top_buttons_group.setLayout(layout)
 
@@ -173,9 +182,13 @@ class WindowInterface(QWidget):
         self.show_image()
 
 
-def main(images_path, annotations_path):
+    def save_img_button_clicked(self):
+        self.image_processor.save_image(self.images_path, self.save_images_path, self.images_names[self.current_img_index])
+
+
+def main(images_path, annotations_path, save_images_path):
     app = QApplication(sys.argv)
-    viewer = WindowInterface(images_path, annotations_path)
+    viewer = WindowInterface(images_path, annotations_path, save_images_path)
     viewer.show()
     sys.exit(app.exec_())
 
@@ -184,6 +197,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--images-path", default="", type=str, metavar="PATH", help="Path to images folder")
     parser.add_argument("--annotations-path", default="", type=str, metavar="PATH", help="Path to annotations json file")
+    parser.add_argument("--save-images-path", default="", type=str, metavar="PATH", help="Path to the folder for saving photos with annotations")
     args = parser.parse_args()
 
-    main(args.images_path, args.annotations_path)
+    main(args.images_path, args.annotations_path, args.save_images_path)
