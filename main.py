@@ -141,9 +141,11 @@ class WindowInterface(QWidget):
         self.view.setScene(self.scene)
 
         self.create_top_buttons_group()
+        self.create_information_label_group()
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.top_buttons_group)
+        main_layout.addWidget(self.information_labels_group)
         main_layout.addWidget(self.view)
 
         self.setLayout(main_layout)
@@ -184,6 +186,18 @@ class WindowInterface(QWidget):
         layout.addWidget(save_mask_button)
 
         self.top_buttons_group.setLayout(layout)
+
+
+    def create_information_label_group(self):
+        self.information_labels_group = QGroupBox()
+
+        label = QLabel("test test")
+
+        layout = QHBoxLayout()
+        layout.addWidget(label)
+
+        self.information_labels_group.setLayout(layout)
+
 
 
     def prev_img_button_clicked(self):
