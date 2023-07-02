@@ -107,6 +107,8 @@ class ImageViewer(QGraphicsView):
     def __init__(self):
         super().__init__()
 
+        self.setDragMode(QGraphicsView.ScrollHandDrag)
+
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
