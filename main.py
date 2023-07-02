@@ -3,10 +3,19 @@ import sys
 import cv2
 import os
 import numpy as np
-from PIL import Image
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QSlider, QFrame, QGroupBox, QGridLayout, QGraphicsView, QScrollArea, QGraphicsScene
-from PyQt5.QtGui import QPixmap, QWheelEvent, QImage, QTransform, QCursor, QPainter
-from PyQt5.QtCore import Qt, QRectF, QEvent
+from PyQt5.QtWidgets import (
+    QApplication,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QWidget,
+    QGroupBox,
+    QGraphicsView,
+    QGraphicsScene,
+)
+from PyQt5.QtGui import QPixmap, QWheelEvent, QImage
+from PyQt5.QtCore import Qt
 
 
 class ImageProcessor:
@@ -17,7 +26,7 @@ class ImageProcessor:
     def read_images_names(self, image_path):
         image_names = []
         for file_name in os.listdir(image_path):
-            if file_name.endswith('.jpg') or file_name.endswith('.png'):
+            if file_name.endswith(".jpg") or file_name.endswith(".png"):
                 image_names.append(file_name)
         return image_names
 
@@ -29,18 +38,17 @@ class ImageProcessor:
         height, width, _ = self.image.shape
         self.mask = np.zeros((height, width), dtype=np.uint8)
 
-
     def read_annotation_files(self, annotations_path):
         annotations_files = []
         for file_name in os.listdir(annotations_path):
-            if file_name.endswith('.txt'):
+            if file_name.endswith(".txt"):
                 annotations_files.append(file_name)
         return annotations_files
 
     def read_and_draw_annotations(self, annotation_path):
-        with open(annotation_path, 'r') as file:
+        with open(annotation_path, "r") as file:
             for line in file:
-                line = str.split(line, ' ')
+                line = str.split(line, " ")
                 if len(line) == 10:
                     int_values = []
                     for value in line[0:8]:
@@ -54,34 +62,43 @@ class ImageProcessor:
 
                     points = np.array(points, dtype=np.int32)
 
-                    cv2.polylines(self.image, [points], isClosed=True, color=(0, 255, 0), thickness=2)
+                    cv2.polylines(
+                        self.image,
+                        [points],
+                        isClosed=True,
+                        color=(0, 255, 0),
+                        thickness=2,
+                    )
                     cv2.fillPoly(self.mask, pts=[points], color=255)
 
-
     def save_image(self, image_folder_path, output_folder_path, image_name):
-        if output_folder_path == '':
-            output_folder_path = image_folder_path+'../saved_images'
+        if output_folder_path == "":
+            output_folder_path = image_folder_path + "../saved_images"
 
         if not os.path.exists(output_folder_path):
             os.makedirs(output_folder_path)
 
-        cv2.imwrite(output_folder_path+'/'+image_name, cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR))
-        print(f'Image {image_name} saved!')
-
+        cv2.imwrite(
+            output_folder_path + "/" + image_name,
+            cv2.cvtColor(self.image, cv2.COLOR_RGB2BGR),
+        )
+        print(f"Image {image_name} saved!")
 
     def save_mask(self, image_folder_path, output_folder_path, image_name):
-        if output_folder_path == '':
-            output_folder_path = image_folder_path+'../saved_masks'
+        if output_folder_path == "":
+            output_folder_path = image_folder_path + "../saved_masks"
 
         if not os.path.exists(output_folder_path):
             os.makedirs(output_folder_path)
 
-        cv2.imwrite(output_folder_path+'/mask_'+image_name, self.mask)
-        print(f'Mask from {image_name} saved!')
+        cv2.imwrite(output_folder_path + "/mask_" + image_name, self.mask)
+        print(f"Mask from {image_name} saved!")
 
     def convert_to_qpixmap(self):
         height, width, channels = self.image.shape
-        qimage = QImage(self.image.data, width, height, channels * width, QImage.Format_RGB888)
+        qimage = QImage(
+            self.image.data, width, height, channels * width, QImage.Format_RGB888
+        )
 
         return qimage
 
@@ -109,7 +126,6 @@ class ImageViewer(QGraphicsView):
             super().wheelEvent(event)
 
 
-
 class WindowInterface(QWidget):
     def __init__(self, image_path, annotations_path, save_images_path, save_masks_path):
         super().__init__()
@@ -125,34 +141,49 @@ class WindowInterface(QWidget):
         self.image_processor = ImageProcessor()
 
         self.images_names = self.image_processor.read_images_names(self.images_path)
-        self.annotations_files_names = self.image_processor.read_annotation_files(self.annotations_path)
+        self.annotations_files_names = self.image_processor.read_annotation_files(
+            self.annotations_path
+        )
 
         self.view = ImageViewer()
         self.scene = QGraphicsScene()
 
         if len(self.images_names) != len(self.annotations_files_names):
-            print('Different length of lists with filenames, check the number of files in the given folders')
+            print(
+                "Different length of lists with filenames, check the number of files in the given folders"
+            )
             exit()
 
+        self.create_top_buttons_group()
+        self.create_information_label_group()
 
         self.show_image()
         self.scale_factor = 1
 
         self.view.setScene(self.scene)
 
-        self.create_top_buttons_group()
-
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.top_buttons_group)
+        main_layout.addWidget(self.information_labels_group)
         main_layout.addWidget(self.view)
 
         self.setLayout(main_layout)
 
     def show_image(self):
-        self.image_processor.read_image(self.images_path + '/' + self.images_names[self.current_img_index])
+        self.image_processor.read_image(
+            self.images_path + "/" + self.images_names[self.current_img_index]
+        )
 
-        annotation_file_name = self.images_names[self.current_img_index].rsplit(".", 1)[0] + '.txt'
-        self.image_processor.read_and_draw_annotations(self.annotations_path + '/' + annotation_file_name)
+        annotation_file_name = (
+            self.images_names[self.current_img_index].rsplit(".", 1)[0] + ".txt"
+        )
+        self.image_processor.read_and_draw_annotations(
+            self.annotations_path + "/" + annotation_file_name
+        )
+
+        self.image_info_label.setText(
+            f"Image name: {self.images_names[self.current_img_index]}, image number: {self.current_img_index+1}/{len(self.images_names)}"
+        )
 
         self.pixmap = QPixmap(self.image_processor.convert_to_qpixmap())
 
@@ -162,9 +193,7 @@ class WindowInterface(QWidget):
         self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         self.view.show()
 
-
     def create_top_buttons_group(self):
-
         self.top_buttons_group = QGroupBox()
 
         prev_img_button = QPushButton("Prev image")
@@ -185,6 +214,17 @@ class WindowInterface(QWidget):
 
         self.top_buttons_group.setLayout(layout)
 
+    def create_information_label_group(self):
+        self.information_labels_group = QGroupBox()
+
+        img_name = self.images_names[self.current_img_index]
+        # self.image_info_label = QLabel(f"Image name: {img_name}, image number: {self.current_img_index+1}/{len(self.images_names)}")
+        self.image_info_label = QLabel()
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.image_info_label)
+
+        self.information_labels_group.setLayout(layout)
 
     def prev_img_button_clicked(self):
         if abs(self.current_img_index - 1) == len(self.images_names):
@@ -194,7 +234,6 @@ class WindowInterface(QWidget):
 
         self.show_image()
 
-
     def next_img_button_clicked(self):
         if self.current_img_index + 1 == len(self.images_names):
             self.current_img_index = 0
@@ -203,27 +242,65 @@ class WindowInterface(QWidget):
 
         self.show_image()
 
-
     def save_img_button_clicked(self):
-        self.image_processor.save_image(self.images_path, self.save_images_path, self.images_names[self.current_img_index])
-
+        self.image_processor.save_image(
+            self.images_path,
+            self.save_images_path,
+            self.images_names[self.current_img_index],
+        )
 
     def save_mask_button_clicked(self):
-        self.image_processor.save_mask(self.images_path, self.save_masks_path, self.images_names[self.current_img_index])
+        self.image_processor.save_mask(
+            self.images_path,
+            self.save_masks_path,
+            self.images_names[self.current_img_index],
+        )
+
 
 def main(images_path, annotations_path, save_images_path, save_masks_path):
     app = QApplication(sys.argv)
-    viewer = WindowInterface(images_path, annotations_path, save_images_path, save_masks_path)
+    viewer = WindowInterface(
+        images_path, annotations_path, save_images_path, save_masks_path
+    )
     viewer.show()
     sys.exit(app.exec_())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--images-path", default="", type=str, metavar="PATH", help="Path to images folder")
-    parser.add_argument("--annotations-path", default="", type=str, metavar="PATH", help="Path to annotations json file")
-    parser.add_argument("--save-images-path", default="", type=str, metavar="PATH", help="Path to the folder for saving photos with annotations")
-    parser.add_argument("--save-masks-path", default="", type=str, metavar="PATH", help="Path to the folder for saving binary masks")
+    parser.add_argument(
+        "--images-path",
+        default="",
+        type=str,
+        metavar="PATH",
+        help="Path to images folder",
+    )
+    parser.add_argument(
+        "--annotations-path",
+        default="",
+        type=str,
+        metavar="PATH",
+        help="Path to annotations json file",
+    )
+    parser.add_argument(
+        "--save-images-path",
+        default="",
+        type=str,
+        metavar="PATH",
+        help="Path to the folder for saving photos with annotations",
+    )
+    parser.add_argument(
+        "--save-masks-path",
+        default="",
+        type=str,
+        metavar="PATH",
+        help="Path to the folder for saving binary masks",
+    )
     args = parser.parse_args()
 
-    main(args.images_path, args.annotations_path, args.save_images_path, args.save_masks_path)
+    main(
+        args.images_path,
+        args.annotations_path,
+        args.save_images_path,
+        args.save_masks_path,
+    )
