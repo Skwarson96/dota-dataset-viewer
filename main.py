@@ -23,6 +23,7 @@ class ImageProcessor:
     def __init__(self):
         self.image = None
         self.mask = None
+        self.file_data = None
 
     def read_images_names(self, image_path):
         image_names = []
@@ -46,9 +47,10 @@ class ImageProcessor:
                 annotations_files.append(file_name)
         return annotations_files
 
-    def read_and_draw_frames(self, annotation_path):
+    def read_file_data(self, annotation_path):
+        self.file_data = {}
         with open(annotation_path, "r") as file:
-            for line in file:
+            for index, line in enumerate(file):
                 line = str.split(line, " ")
                 if len(line) == 10:
                     int_values = []
@@ -61,46 +63,44 @@ class ImageProcessor:
                     points = [(x_1, y_1), (x_2, y_2), (x_3, y_3), (x_4, y_4)]
                     category, difficult = line[8:10]
 
-                    points = np.array(points, dtype=np.int32)
-                    color = (0, 255, 0)
-                    cv2.polylines(
-                        self.image,
-                        [points],
-                        isClosed=True,
-                        color=color,
-                        thickness=2,
-                    )
+                    self.file_data[index] = {'points': points, 'category': category}
 
-                    # make binary mask
-                    cv2.fillPoly(self.mask, pts=[points], color=255)
+        # return file_data
 
-    def draw_labels(self, annotation_path):
-        with open(annotation_path, "r") as file:
-            for line in file:
-                line = str.split(line, " ")
-                if len(line) == 10:
-                    int_values = []
-                    for value in line[0:8]:
-                        value = float(value)
-                        value = int(value)
-                        int_values.append(value)
+    def draw_frames(self):
+        for index in self.file_data.keys():
+            points = self.file_data[index]['points']
 
-                    x_1, y_1, x_2, y_2, x_3, y_3, x_4, y_4 = int_values
-                    points = [(x_1, y_1), (x_2, y_2), (x_3, y_3), (x_4, y_4)]
-                    category, difficult = line[8:10]
+            points = np.array(points, dtype=np.int32)
+            color = (0, 255, 0)
+            cv2.polylines(
+                self.image,
+                [points],
+                isClosed=True,
+                color=color,
+                thickness=2,
+            )
 
-                    # add starting point
-                    cv2.circle(self.image, (x_1, y_1), 5, (255, 0, 0), -1)
+            # make binary mask
+            cv2.fillPoly(self.mask, pts=[points], color=255)
 
-                    # add annotation text
-                    font = cv2.FONT_HERSHEY_SIMPLEX
-                    font_scale = 0.5
-                    thickness = 2
-                    text_size, baseline = cv2.getTextSize(category, font, font_scale, thickness)
-                    background_position = (x_1 + text_size[0], y_1 - text_size[1])
-                    color = (0, 255, 0)
-                    cv2.rectangle(self.image, (x_1, y_1 + baseline), background_position, color, -1)
-                    cv2.putText(self.image, category, (x_1, y_1), font, font_scale, (0, 0, 0), thickness)
+    def draw_labels(self):
+        for index in self.file_data.keys():
+            category = self.file_data[index]['category']
+            x_1, y_1 = self.file_data[index]['points'][0]
+
+            # add starting point
+            cv2.circle(self.image, (x_1, y_1), 5, (255, 0, 0), -1)
+
+            # add annotation text
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.5
+            thickness = 2
+            text_size, baseline = cv2.getTextSize(category, font, font_scale, thickness)
+            background_position = (x_1 + text_size[0], y_1 - text_size[1])
+            color = (0, 255, 0)
+            cv2.rectangle(self.image, (x_1, y_1 + baseline), background_position, color, -1)
+            cv2.putText(self.image, category, (x_1, y_1), font, font_scale, (0, 0, 0), thickness)
 
     def save_image(self, image_folder_path, output_folder_path, image_name):
         if output_folder_path == "":
@@ -216,14 +216,13 @@ class WindowInterface(QWidget):
         annotation_file_name = (
             self.images_names[self.current_img_index].rsplit(".", 1)[0] + ".txt"
         )
-        self.image_processor.read_and_draw_frames(
-            self.annotations_path + "/" + annotation_file_name
-        )
+
+        self.image_processor.read_file_data(self.annotations_path + "/" + annotation_file_name)
+
+        self.image_processor.draw_frames()
 
         if not self.hide_labels:
-            self.image_processor.draw_labels(
-                self.annotations_path + "/" + annotation_file_name
-            )
+            self.image_processor.draw_labels()
 
         self.image_info_label.setText(
             f"Image name: {self.images_names[self.current_img_index]}, image number: {self.current_img_index+1}/{len(self.images_names)}"
