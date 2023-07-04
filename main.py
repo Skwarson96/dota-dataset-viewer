@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QHBoxLayout,
+    QGridLayout,
     QWidget,
     QGroupBox,
     QGraphicsView,
@@ -22,6 +23,7 @@ class ImageProcessor:
     def __init__(self):
         self.image = None
         self.mask = None
+        self.file_data = None
 
     def read_images_names(self, image_path):
         image_names = []
@@ -45,9 +47,10 @@ class ImageProcessor:
                 annotations_files.append(file_name)
         return annotations_files
 
-    def read_and_draw_annotations(self, annotation_path):
+    def read_file_data(self, annotation_path):
+        self.file_data = {}
         with open(annotation_path, "r") as file:
-            for line in file:
+            for index, line in enumerate(file):
                 line = str.split(line, " ")
                 if len(line) == 10:
                     int_values = []
@@ -60,16 +63,44 @@ class ImageProcessor:
                     points = [(x_1, y_1), (x_2, y_2), (x_3, y_3), (x_4, y_4)]
                     category, difficult = line[8:10]
 
-                    points = np.array(points, dtype=np.int32)
+                    self.file_data[index] = {'points': points, 'category': category}
 
-                    cv2.polylines(
-                        self.image,
-                        [points],
-                        isClosed=True,
-                        color=(0, 255, 0),
-                        thickness=2,
-                    )
-                    cv2.fillPoly(self.mask, pts=[points], color=255)
+        # return file_data
+
+    def draw_frames(self):
+        for index in self.file_data.keys():
+            points = self.file_data[index]['points']
+
+            points = np.array(points, dtype=np.int32)
+            color = (0, 255, 0)
+            cv2.polylines(
+                self.image,
+                [points],
+                isClosed=True,
+                color=color,
+                thickness=2,
+            )
+
+            # make binary mask
+            cv2.fillPoly(self.mask, pts=[points], color=255)
+
+    def draw_labels(self):
+        for index in self.file_data.keys():
+            category = self.file_data[index]['category']
+            x_1, y_1 = self.file_data[index]['points'][0]
+
+            # add starting point
+            cv2.circle(self.image, (x_1, y_1), 5, (255, 0, 0), -1)
+
+            # add annotation text
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.5
+            thickness = 2
+            text_size, baseline = cv2.getTextSize(category, font, font_scale, thickness)
+            background_position = (x_1 + text_size[0], y_1 - text_size[1])
+            color = (0, 255, 0)
+            cv2.rectangle(self.image, (x_1, y_1 + baseline), background_position, color, -1)
+            cv2.putText(self.image, category, (x_1, y_1), font, font_scale, (0, 0, 0), thickness)
 
     def save_image(self, image_folder_path, output_folder_path, image_name):
         if output_folder_path == "":
@@ -116,14 +147,19 @@ class ImageViewer(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
         self.setInteractive(True)
 
+        self.current_scale = 1.0
+
     def wheelEvent(self, event: QWheelEvent):
         modifiers = QApplication.keyboardModifiers()
+
         if modifiers == Qt.ControlModifier:
             zoom_in = event.angleDelta().y() > 0
             if zoom_in:
                 self.scale(1.1, 1.1)
+                self.current_scale = self.transform().m11()
             else:
                 self.scale(0.9, 0.9)
+                self.current_scale = self.transform().m11()
         else:
             super().wheelEvent(event)
 
@@ -136,6 +172,7 @@ class WindowInterface(QWidget):
         self.annotations_path = annotations_path
         self.save_images_path = save_images_path
         self.save_masks_path = save_masks_path
+        self.hide_labels = False
 
         self.setWindowTitle("DOTA dataset viewer")
 
@@ -179,9 +216,13 @@ class WindowInterface(QWidget):
         annotation_file_name = (
             self.images_names[self.current_img_index].rsplit(".", 1)[0] + ".txt"
         )
-        self.image_processor.read_and_draw_annotations(
-            self.annotations_path + "/" + annotation_file_name
-        )
+
+        self.image_processor.read_file_data(self.annotations_path + "/" + annotation_file_name)
+
+        self.image_processor.draw_frames()
+
+        if not self.hide_labels:
+            self.image_processor.draw_labels()
 
         self.image_info_label.setText(
             f"Image name: {self.images_names[self.current_img_index]}, image number: {self.current_img_index+1}/{len(self.images_names)}"
@@ -192,7 +233,7 @@ class WindowInterface(QWidget):
         self.scene.clear()
 
         self.scene.addPixmap(self.pixmap)
-        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.view.scale(1.0, 1.0)
         self.view.show()
 
     def create_top_buttons_group(self):
@@ -202,25 +243,26 @@ class WindowInterface(QWidget):
         next_img_button = QPushButton("Next image")
         save_img_button = QPushButton("Save image")
         save_mask_button = QPushButton("Save mask")
+        toggle_labels_button = QPushButton("Toggle labels")
 
         prev_img_button.clicked.connect(self.prev_img_button_clicked)
         next_img_button.clicked.connect(self.next_img_button_clicked)
         save_img_button.clicked.connect(self.save_img_button_clicked)
         save_mask_button.clicked.connect(self.save_mask_button_clicked)
+        toggle_labels_button.clicked.connect(self.toggle_labels_button_clicked)
 
-        layout = QHBoxLayout()
-        layout.addWidget(prev_img_button)
-        layout.addWidget(next_img_button)
-        layout.addWidget(save_img_button)
-        layout.addWidget(save_mask_button)
+        layout = QGridLayout()
+        layout.addWidget(prev_img_button, 0, 0)
+        layout.addWidget(next_img_button, 0, 1)
+        layout.addWidget(save_img_button, 0, 2)
+        layout.addWidget(save_mask_button, 0, 3)
+        layout.addWidget(toggle_labels_button, 1, 0)
 
         self.top_buttons_group.setLayout(layout)
 
     def create_information_label_group(self):
         self.information_labels_group = QGroupBox()
 
-        img_name = self.images_names[self.current_img_index]
-        # self.image_info_label = QLabel(f"Image name: {img_name}, image number: {self.current_img_index+1}/{len(self.images_names)}")
         self.image_info_label = QLabel()
 
         layout = QHBoxLayout()
@@ -234,6 +276,7 @@ class WindowInterface(QWidget):
         else:
             self.current_img_index = self.current_img_index - 1
 
+        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         self.show_image()
 
     def next_img_button_clicked(self):
@@ -242,6 +285,7 @@ class WindowInterface(QWidget):
         else:
             self.current_img_index = self.current_img_index + 1
 
+        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         self.show_image()
 
     def save_img_button_clicked(self):
@@ -257,6 +301,10 @@ class WindowInterface(QWidget):
             self.save_masks_path,
             self.images_names[self.current_img_index],
         )
+
+    def toggle_labels_button_clicked(self):
+        self.hide_labels = not self.hide_labels
+        self.show_image()
 
 
 def main(images_path, annotations_path, save_images_path, save_masks_path):
