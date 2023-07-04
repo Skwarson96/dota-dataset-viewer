@@ -147,14 +147,19 @@ class ImageViewer(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
         self.setInteractive(True)
 
+        self.current_scale = 1.0
+
     def wheelEvent(self, event: QWheelEvent):
         modifiers = QApplication.keyboardModifiers()
+
         if modifiers == Qt.ControlModifier:
             zoom_in = event.angleDelta().y() > 0
             if zoom_in:
                 self.scale(1.1, 1.1)
+                self.current_scale = self.transform().m11()
             else:
                 self.scale(0.9, 0.9)
+                self.current_scale = self.transform().m11()
         else:
             super().wheelEvent(event)
 
@@ -215,9 +220,7 @@ class WindowInterface(QWidget):
             self.annotations_path + "/" + annotation_file_name
         )
 
-        print('show_image self.hide_labels', self.hide_labels)
         if not self.hide_labels:
-            print('show labels')
             self.image_processor.draw_labels(
                 self.annotations_path + "/" + annotation_file_name
             )
@@ -231,7 +234,7 @@ class WindowInterface(QWidget):
         self.scene.clear()
 
         self.scene.addPixmap(self.pixmap)
-        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.view.scale(1.0, 1.0)
         self.view.show()
 
     def create_top_buttons_group(self):
@@ -274,6 +277,7 @@ class WindowInterface(QWidget):
         else:
             self.current_img_index = self.current_img_index - 1
 
+        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         self.show_image()
 
     def next_img_button_clicked(self):
@@ -282,6 +286,7 @@ class WindowInterface(QWidget):
         else:
             self.current_img_index = self.current_img_index + 1
 
+        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         self.show_image()
 
     def save_img_button_clicked(self):
