@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QHBoxLayout,
+    QGridLayout,
     QWidget,
     QGroupBox,
     QGraphicsView,
@@ -73,8 +74,6 @@ class ImageProcessor:
                     # make binary mask
                     cv2.fillPoly(self.mask, pts=[points], color=255)
 
-
-
     def draw_labels(self, annotation_path):
         with open(annotation_path, "r") as file:
             for line in file:
@@ -102,8 +101,6 @@ class ImageProcessor:
                     color = (0, 255, 0)
                     cv2.rectangle(self.image, (x_1, y_1 + baseline), background_position, color, -1)
                     cv2.putText(self.image, category, (x_1, y_1), font, font_scale, (0, 0, 0), thickness)
-
-
 
     def save_image(self, image_folder_path, output_folder_path, image_name):
         if output_folder_path == "":
@@ -170,6 +167,7 @@ class WindowInterface(QWidget):
         self.annotations_path = annotations_path
         self.save_images_path = save_images_path
         self.save_masks_path = save_masks_path
+        self.hide_labels = False
 
         self.setWindowTitle("DOTA dataset viewer")
 
@@ -217,9 +215,12 @@ class WindowInterface(QWidget):
             self.annotations_path + "/" + annotation_file_name
         )
 
-        self.image_processor.draw_labels(
-            self.annotations_path + "/" + annotation_file_name
-        )
+        print('show_image self.hide_labels', self.hide_labels)
+        if not self.hide_labels:
+            print('show labels')
+            self.image_processor.draw_labels(
+                self.annotations_path + "/" + annotation_file_name
+            )
 
         self.image_info_label.setText(
             f"Image name: {self.images_names[self.current_img_index]}, image number: {self.current_img_index+1}/{len(self.images_names)}"
@@ -240,25 +241,26 @@ class WindowInterface(QWidget):
         next_img_button = QPushButton("Next image")
         save_img_button = QPushButton("Save image")
         save_mask_button = QPushButton("Save mask")
+        toggle_labels_button = QPushButton("Toggle labels")
 
         prev_img_button.clicked.connect(self.prev_img_button_clicked)
         next_img_button.clicked.connect(self.next_img_button_clicked)
         save_img_button.clicked.connect(self.save_img_button_clicked)
         save_mask_button.clicked.connect(self.save_mask_button_clicked)
+        toggle_labels_button.clicked.connect(self.toggle_labels_button_clicked)
 
-        layout = QHBoxLayout()
-        layout.addWidget(prev_img_button)
-        layout.addWidget(next_img_button)
-        layout.addWidget(save_img_button)
-        layout.addWidget(save_mask_button)
+        layout = QGridLayout()
+        layout.addWidget(prev_img_button, 0, 0)
+        layout.addWidget(next_img_button, 0, 1)
+        layout.addWidget(save_img_button, 0, 2)
+        layout.addWidget(save_mask_button, 0, 3)
+        layout.addWidget(toggle_labels_button, 1, 0)
 
         self.top_buttons_group.setLayout(layout)
 
     def create_information_label_group(self):
         self.information_labels_group = QGroupBox()
 
-        img_name = self.images_names[self.current_img_index]
-        # self.image_info_label = QLabel(f"Image name: {img_name}, image number: {self.current_img_index+1}/{len(self.images_names)}")
         self.image_info_label = QLabel()
 
         layout = QHBoxLayout()
@@ -295,6 +297,10 @@ class WindowInterface(QWidget):
             self.save_masks_path,
             self.images_names[self.current_img_index],
         )
+
+    def toggle_labels_button_clicked(self):
+        self.hide_labels = not self.hide_labels
+        self.show_image()
 
 
 def main(images_path, annotations_path, save_images_path, save_masks_path):
