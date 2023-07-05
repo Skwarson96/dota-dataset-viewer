@@ -209,6 +209,7 @@ class WindowInterface(QWidget):
         self.save_images_path = save_images_path
         self.save_masks_path = save_masks_path
         self.hide_labels = False
+        self.hide_frames = False
         self.fit_view = True
 
         self.setWindowTitle("DOTA dataset viewer")
@@ -246,7 +247,8 @@ class WindowInterface(QWidget):
 
         self.image_processor.read_file_data(self.annotations_path + "/" + annotation_file_name)
 
-        self.image_processor.draw_frames()
+        if not self.hide_frames:
+            self.image_processor.draw_frames()
 
         if not self.hide_labels:
             self.image_processor.draw_labels()
@@ -276,12 +278,14 @@ class WindowInterface(QWidget):
         save_img_button = QPushButton("Save image")
         save_mask_button = QPushButton("Save mask")
         toggle_labels_button = QPushButton("Toggle labels")
+        toggle_frames_button = QPushButton("Toggle frames")
 
         prev_img_button.clicked.connect(self.prev_img_button_clicked)
         next_img_button.clicked.connect(self.next_img_button_clicked)
         save_img_button.clicked.connect(self.save_img_button_clicked)
         save_mask_button.clicked.connect(self.save_mask_button_clicked)
         toggle_labels_button.clicked.connect(self.toggle_labels_button_clicked)
+        toggle_frames_button.clicked.connect(self.toggle_frames_button_clicked)
 
         layout = QGridLayout()
         layout.addWidget(prev_img_button, 0, 0)
@@ -289,6 +293,7 @@ class WindowInterface(QWidget):
         layout.addWidget(save_img_button, 0, 2)
         layout.addWidget(save_mask_button, 0, 3)
         layout.addWidget(toggle_labels_button, 1, 0)
+        layout.addWidget(toggle_frames_button, 1, 1)
 
         self.top_buttons_group.setLayout(layout)
 
@@ -340,6 +345,11 @@ class WindowInterface(QWidget):
 
     def toggle_labels_button_clicked(self):
         self.hide_labels = not self.hide_labels
+        self.fit_view = False
+        self.show_image()
+
+    def toggle_frames_button_clicked(self):
+        self.hide_frames = not self.hide_frames
         self.fit_view = False
         self.show_image()
 
