@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (
     QGraphicsScene,
 )
 from PyQt5.QtGui import QPixmap, QWheelEvent, QImage
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QRectF
 
 
 class ImageProcessor:
@@ -258,8 +258,13 @@ class WindowInterface(QWidget):
 
         self.scene.clear()
 
+        self.scene.setSceneRect(QRectF(self.pixmap.rect()))
+        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+        scale_factor = self._adjust_scale(self.view.transform().m11())
+        self.view.scale(1.0*scale_factor, 1.0*scale_factor)
+
         self.scene.addPixmap(self.pixmap)
-        self.view.scale(1.0, 1.0)
         self.view.show()
 
     def create_top_buttons_group(self):
@@ -296,13 +301,16 @@ class WindowInterface(QWidget):
 
         self.information_labels_group.setLayout(layout)
 
+    def _adjust_scale(self, current_scale):
+        scale_factor = 1/current_scale
+        return scale_factor
+
     def prev_img_button_clicked(self):
         if abs(self.current_img_index - 1) == len(self.images_names):
             self.current_img_index = 0
         else:
             self.current_img_index = self.current_img_index - 1
 
-        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         self.show_image()
 
     def next_img_button_clicked(self):
@@ -311,7 +319,6 @@ class WindowInterface(QWidget):
         else:
             self.current_img_index = self.current_img_index + 1
 
-        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         self.show_image()
 
     def save_img_button_clicked(self):
