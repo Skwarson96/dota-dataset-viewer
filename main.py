@@ -209,6 +209,7 @@ class WindowInterface(QWidget):
         self.save_images_path = save_images_path
         self.save_masks_path = save_masks_path
         self.hide_labels = False
+        self.fit_view = True
 
         self.setWindowTitle("DOTA dataset viewer")
 
@@ -257,12 +258,12 @@ class WindowInterface(QWidget):
         self.pixmap = QPixmap(self.image_processor.convert_to_qpixmap())
 
         self.scene.clear()
+        if self.fit_view:
+            self.scene.setSceneRect(QRectF(self.pixmap.rect()))
+            self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
-        self.scene.setSceneRect(QRectF(self.pixmap.rect()))
-        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
-
-        scale_factor = self._adjust_scale(self.view.transform().m11())
-        self.view.scale(1.0*scale_factor, 1.0*scale_factor)
+            scale_factor = self._adjust_scale(self.view.transform().m11())
+            self.view.scale(1.0*scale_factor, 1.0*scale_factor)
 
         self.scene.addPixmap(self.pixmap)
         self.view.show()
@@ -311,6 +312,7 @@ class WindowInterface(QWidget):
         else:
             self.current_img_index = self.current_img_index - 1
 
+        self.fit_view = True
         self.show_image()
 
     def next_img_button_clicked(self):
@@ -319,6 +321,7 @@ class WindowInterface(QWidget):
         else:
             self.current_img_index = self.current_img_index + 1
 
+        self.fit_view = True
         self.show_image()
 
     def save_img_button_clicked(self):
@@ -337,6 +340,7 @@ class WindowInterface(QWidget):
 
     def toggle_labels_button_clicked(self):
         self.hide_labels = not self.hide_labels
+        self.fit_view = False
         self.show_image()
 
 
