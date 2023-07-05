@@ -2,6 +2,7 @@ import argparse
 import sys
 import cv2
 import os
+import random
 import numpy as np
 from PyQt5.QtWidgets import (
     QApplication,
@@ -16,36 +17,67 @@ from PyQt5.QtWidgets import (
     QGraphicsScene,
 )
 from PyQt5.QtGui import QPixmap, QWheelEvent, QImage
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QRectF
 
 
 class ImageProcessor:
-    def __init__(self):
+    def __init__(self, images_path, annotations_path):
         self.image = None
         self.mask = None
         self.file_data = None
 
+        self.images_path = images_path
+        self.annotations_path = annotations_path
+
+        self.image_names = []
+        self.annotations_files = []
+        self.unique_categories_with_colors = {}
+
+        self.images_names = self.read_images_names(self.images_path)
+        self.annotations_files_names = self.read_annotation_files(
+            self.annotations_path
+        )
+
+        self._check_amount_of_files()
+        self._set_categories_colors(self.annotations_path)
+
+    def _check_amount_of_files(self):
+        if len(self.images_names) != len(self.annotations_files_names):
+            print(
+                "Different length of lists with filenames, check the number of files in the given folders"
+            )
+            exit()
+        else:
+            pass
+
     def read_images_names(self, image_path):
-        image_names = []
         for file_name in os.listdir(image_path):
             if file_name.endswith(".jpg") or file_name.endswith(".png"):
-                image_names.append(file_name)
-        return image_names
+                self.image_names.append(file_name)
+        return self.image_names
 
     def read_image(self, image_path):
         image = cv2.imread(image_path)
         self.image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
         # create mask
         height, width, _ = self.image.shape
         self.mask = np.zeros((height, width), dtype=np.uint8)
 
     def read_annotation_files(self, annotations_path):
-        annotations_files = []
         for file_name in os.listdir(annotations_path):
             if file_name.endswith(".txt"):
-                annotations_files.append(file_name)
-        return annotations_files
+                self.annotations_files.append(file_name)
+        return self.annotations_files
+
+    def _set_categories_colors(self, annotation_path):
+        for img_name in self.annotations_files:
+            with open(annotation_path+img_name, "r") as file:
+                for index, line in enumerate(file):
+                    line = str.split(line, " ")
+                    if len(line) == 10:
+                        category = line[8]
+                        if category not in self.unique_categories_with_colors.keys():
+                            self.unique_categories_with_colors[category] = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
     def read_file_data(self, annotation_path):
         self.file_data = {}
@@ -63,16 +95,18 @@ class ImageProcessor:
                     points = [(x_1, y_1), (x_2, y_2), (x_3, y_3), (x_4, y_4)]
                     category, difficult = line[8:10]
 
-                    self.file_data[index] = {'points': points, 'category': category}
+                    color = self.unique_categories_with_colors[category]
+
+                    self.file_data[index] = {'points': points, 'category': category, 'color': color}
 
         # return file_data
 
     def draw_frames(self):
         for index in self.file_data.keys():
             points = self.file_data[index]['points']
-
+            color = self.file_data[index]['color']
             points = np.array(points, dtype=np.int32)
-            color = (0, 255, 0)
+
             cv2.polylines(
                 self.image,
                 [points],
@@ -88,9 +122,11 @@ class ImageProcessor:
         for index in self.file_data.keys():
             category = self.file_data[index]['category']
             x_1, y_1 = self.file_data[index]['points'][0]
+            color = self.file_data[index]['color']
 
             # add starting point
-            cv2.circle(self.image, (x_1, y_1), 5, (255, 0, 0), -1)
+            red_color = (255, 0, 0)
+            cv2.circle(self.image, (x_1, y_1), 5, red_color, -1)
 
             # add annotation text
             font = cv2.FONT_HERSHEY_SIMPLEX
@@ -98,7 +134,7 @@ class ImageProcessor:
             thickness = 2
             text_size, baseline = cv2.getTextSize(category, font, font_scale, thickness)
             background_position = (x_1 + text_size[0], y_1 - text_size[1])
-            color = (0, 255, 0)
+
             cv2.rectangle(self.image, (x_1, y_1 + baseline), background_position, color, -1)
             cv2.putText(self.image, category, (x_1, y_1), font, font_scale, (0, 0, 0), thickness)
 
@@ -173,25 +209,17 @@ class WindowInterface(QWidget):
         self.save_images_path = save_images_path
         self.save_masks_path = save_masks_path
         self.hide_labels = False
+        self.hide_frames = False
+        self.fit_view = True
 
         self.setWindowTitle("DOTA dataset viewer")
 
         self.current_img_index = 0
-        self.image_processor = ImageProcessor()
-
-        self.images_names = self.image_processor.read_images_names(self.images_path)
-        self.annotations_files_names = self.image_processor.read_annotation_files(
-            self.annotations_path
-        )
+        self.image_processor = ImageProcessor(self.images_path, self.annotations_path)
+        self.images_names = self.image_processor.images_names
 
         self.view = ImageViewer()
         self.scene = QGraphicsScene()
-
-        if len(self.images_names) != len(self.annotations_files_names):
-            print(
-                "Different length of lists with filenames, check the number of files in the given folders"
-            )
-            exit()
 
         self.create_top_buttons_group()
         self.create_information_label_group()
@@ -219,7 +247,8 @@ class WindowInterface(QWidget):
 
         self.image_processor.read_file_data(self.annotations_path + "/" + annotation_file_name)
 
-        self.image_processor.draw_frames()
+        if not self.hide_frames:
+            self.image_processor.draw_frames()
 
         if not self.hide_labels:
             self.image_processor.draw_labels()
@@ -231,9 +260,14 @@ class WindowInterface(QWidget):
         self.pixmap = QPixmap(self.image_processor.convert_to_qpixmap())
 
         self.scene.clear()
+        if self.fit_view:
+            self.scene.setSceneRect(QRectF(self.pixmap.rect()))
+            self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+            scale_factor = self._adjust_scale(self.view.transform().m11())
+            self.view.scale(1.0*scale_factor, 1.0*scale_factor)
 
         self.scene.addPixmap(self.pixmap)
-        self.view.scale(1.0, 1.0)
         self.view.show()
 
     def create_top_buttons_group(self):
@@ -244,12 +278,14 @@ class WindowInterface(QWidget):
         save_img_button = QPushButton("Save image")
         save_mask_button = QPushButton("Save mask")
         toggle_labels_button = QPushButton("Toggle labels")
+        toggle_frames_button = QPushButton("Toggle frames")
 
         prev_img_button.clicked.connect(self.prev_img_button_clicked)
         next_img_button.clicked.connect(self.next_img_button_clicked)
         save_img_button.clicked.connect(self.save_img_button_clicked)
         save_mask_button.clicked.connect(self.save_mask_button_clicked)
         toggle_labels_button.clicked.connect(self.toggle_labels_button_clicked)
+        toggle_frames_button.clicked.connect(self.toggle_frames_button_clicked)
 
         layout = QGridLayout()
         layout.addWidget(prev_img_button, 0, 0)
@@ -257,6 +293,7 @@ class WindowInterface(QWidget):
         layout.addWidget(save_img_button, 0, 2)
         layout.addWidget(save_mask_button, 0, 3)
         layout.addWidget(toggle_labels_button, 1, 0)
+        layout.addWidget(toggle_frames_button, 1, 1)
 
         self.top_buttons_group.setLayout(layout)
 
@@ -270,13 +307,17 @@ class WindowInterface(QWidget):
 
         self.information_labels_group.setLayout(layout)
 
+    def _adjust_scale(self, current_scale):
+        scale_factor = 1/current_scale
+        return scale_factor
+
     def prev_img_button_clicked(self):
         if abs(self.current_img_index - 1) == len(self.images_names):
             self.current_img_index = 0
         else:
             self.current_img_index = self.current_img_index - 1
 
-        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.fit_view = True
         self.show_image()
 
     def next_img_button_clicked(self):
@@ -285,7 +326,7 @@ class WindowInterface(QWidget):
         else:
             self.current_img_index = self.current_img_index + 1
 
-        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.fit_view = True
         self.show_image()
 
     def save_img_button_clicked(self):
@@ -304,6 +345,12 @@ class WindowInterface(QWidget):
 
     def toggle_labels_button_clicked(self):
         self.hide_labels = not self.hide_labels
+        self.fit_view = False
+        self.show_image()
+
+    def toggle_frames_button_clicked(self):
+        self.hide_frames = not self.hide_frames
+        self.fit_view = False
         self.show_image()
 
 
