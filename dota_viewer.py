@@ -19,14 +19,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--images-path",
-        default="",
+        default="./images/",
         type=str,
         metavar="PATH",
         help="Path to images folder",
     )
     parser.add_argument(
         "--annotations-path",
-        default="",
+        default="./annotations/",
         type=str,
         metavar="PATH",
         help="Path to annotations json file",
