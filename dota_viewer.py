@@ -3,7 +3,7 @@ import sys
 
 from PyQt5.QtWidgets import QApplication
 
-from window_interface import WindowInterface
+from dota_viewer.window_interface import WindowInterface
 
 
 def main(images_path, annotations_path, save_images_path, save_masks_path):

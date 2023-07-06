@@ -11,8 +11,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, QRectF
 
-from image_processor import ImageProcessor
-from image_viewer import ImageViewer
+from dota_viewer.image_processor import ImageProcessor
+from dota_viewer.image_viewer import ImageViewer
 
 
 class WindowInterface(QWidget):
