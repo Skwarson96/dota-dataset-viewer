@@ -2,7 +2,7 @@
 
 A simple application to view data saved in [DOTA](https://captain-whu.github.io/DOTA/dataset.html) format
 
-![GIF](https://github.com/Skwarson96/dota-dataset-viewer/blob/fix_gif/assets/video.gif)
+![GIF](https://github.com/Skwarson96/dota-dataset-viewer/blob/main/assets/video.gif)
 
 ## Installation
 ``` 
