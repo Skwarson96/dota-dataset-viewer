@@ -6,8 +6,8 @@ A simple application to view data saved in [DOTA](https://captain-whu.github.io/
 
 ## Installation
 ``` 
-- pip3 install -r requirements.txt
-- pip3 install opencv-python-headless == 4.7.0.72 
+pip3 install -r requirements.txt
+pip3 install opencv-python-headless==4.7.0.72 
 ```
 
 ## Usage
