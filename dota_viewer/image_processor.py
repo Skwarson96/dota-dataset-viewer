@@ -15,30 +15,40 @@ class ImageProcessor:
         self.images_path = images_path
         self.annotations_path = annotations_path
 
-        self.image_names = []
-        self.annotations_files = []
         self.unique_categories_with_colors = {}
 
         self.images_names = self.read_images_names(self.images_path)
         self.annotations_files_names = self.read_annotation_files(self.annotations_path)
 
-        self._check_amount_of_files()
-        self._set_categories_colors(self.annotations_path)
+        self.pairing_images_with_annotations()
+        self.set_categories_colors(self.annotations_path)
 
-    def _check_amount_of_files(self):
-        if len(self.images_names) != len(self.annotations_files_names):
-            print(
-                "Different length of lists with filenames, check the number of files in the given folders"
-            )
-            exit()
-        else:
-            pass
+    def pairing_images_with_annotations(self):
+        annotations_files_no_endswitch = [
+            file_name.split(".")[0] for file_name in self.annotations_files_names
+        ]
+        self.images_names = [
+            img_name
+            for img_name in self.images_names
+            if img_name.split(".")[0] in annotations_files_no_endswitch
+        ]
 
-    def read_images_names(self, image_path):
+        image_names_no_endswitch = [
+            file_name.split(".")[0] for file_name in self.images_names
+        ]
+        self.annotations_files_names = [
+            file_name
+            for file_name in self.annotations_files_names
+            if file_name.split(".")[0] in image_names_no_endswitch
+        ]
+
+    @staticmethod
+    def read_images_names(image_path):
+        image_names = []
         for file_name in os.listdir(image_path):
             if file_name.endswith(".jpg") or file_name.endswith(".png"):
-                self.image_names.append(file_name)
-        return self.image_names
+                image_names.append(file_name)
+        return image_names
 
     def read_image(self, image_path):
         image = cv2.imread(image_path)
@@ -47,15 +57,17 @@ class ImageProcessor:
         height, width, _ = self.image.shape
         self.mask = np.zeros((height, width), dtype=np.uint8)
 
-    def read_annotation_files(self, annotations_path):
+    @staticmethod
+    def read_annotation_files(annotations_path):
+        annotations_files = []
         for file_name in os.listdir(annotations_path):
             if file_name.endswith(".txt"):
-                self.annotations_files.append(file_name)
-        return self.annotations_files
+                annotations_files.append(file_name)
+        return annotations_files
 
-    def _set_categories_colors(self, annotation_path):
-        for img_name in self.annotations_files:
-            with open(annotation_path + img_name, "r") as file:
+    def set_categories_colors(self, annotation_path):
+        for file_name in self.annotations_files_names:
+            with open(annotation_path + file_name, "r") as file:
                 for index, line in enumerate(file):
                     line = str.split(line, " ")
                     if len(line) == 10:

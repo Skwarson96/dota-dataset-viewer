@@ -26,3 +26,12 @@ optional arguments:
 ```
 python3 dota_viewer.py --images-path ./dota/images/ --annotations-path ./dota/annotations/ --save-images-path ./dota/saved_images --save-masks-path ./dota/saved_masks
 ```
+
+```bash
+├── annotations
+│   ├── P0000.txt
+│   └── P0188.txt
+├── images
+│   ├── P0000.png
+│   └── P0005.png
+```
