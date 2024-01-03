@@ -1,6 +1,6 @@
-import cv2
 import os
 import random
+import cv2
 import numpy as np
 
 from PyQt5.QtGui import QImage
@@ -67,16 +67,16 @@ class ImageProcessor:
 
     def set_categories_colors(self, annotation_path):
         for file_name in self.annotations_files_names:
-            with open(annotation_path + file_name, "r") as file:
+            with open(annotation_path + file_name, "r", encoding="utf-8") as file:
                 for index, line in enumerate(file):
                     line = str.split(line, " ")
                     if len(line) == 10:
                         category = line[8]
-                        if category not in self.unique_categories_with_colors.keys():
+                        if category not in self.unique_categories_with_colors:
                             self.unique_categories_with_colors[category] = (
-                                random.randint(0, 255),
-                                random.randint(0, 255),
-                                random.randint(0, 255),
+                                random.randint(100, 255),
+                                random.randint(100, 255),
+                                random.randint(100, 255),
                             )
 
     def read_file_data(self, annotation_path):
@@ -93,7 +93,7 @@ class ImageProcessor:
 
                     x_1, y_1, x_2, y_2, x_3, y_3, x_4, y_4 = int_values
                     points = [(x_1, y_1), (x_2, y_2), (x_3, y_3), (x_4, y_4)]
-                    category, difficult = line[8:10]
+                    category, _ = line[8:10]
 
                     color = self.unique_categories_with_colors[category]
 
@@ -128,10 +128,6 @@ class ImageProcessor:
             x_1, y_1 = self.file_data[index]["points"][0]
             color = self.file_data[index]["color"]
 
-            # add starting point
-            red_color = (255, 0, 0)
-            cv2.circle(self.image, (x_1, y_1), 5, red_color, -1)
-
             # add annotation text
             font = cv2.FONT_HERSHEY_SIMPLEX
             font_scale = 0.5
@@ -145,6 +141,10 @@ class ImageProcessor:
             cv2.putText(
                 self.image, category, (x_1, y_1), font, font_scale, (0, 0, 0), thickness
             )
+
+            # add starting point
+            red_color = (255, 0, 0)
+            cv2.circle(self.image, (x_1, y_1), 3, red_color, -1)
 
     def save_image(self, image_folder_path, output_folder_path, image_name):
         if output_folder_path == "":

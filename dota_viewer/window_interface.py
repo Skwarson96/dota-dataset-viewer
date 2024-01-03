@@ -71,7 +71,8 @@ class WindowInterface(QWidget):
             self.image_processor.draw_labels()
 
         self.image_info_label.setText(
-            f"Image name: {self.images_names[self.current_img_index]}, image number: {self.current_img_index+1}/{len(self.images_names)}"
+            f"Image name: {self.images_names[self.current_img_index]}, "
+            f"image number: {self.current_img_index+1}/{len(self.images_names)}"
         )
 
         self.pixmap = QPixmap(self.image_processor.convert_to_qpixmap())
